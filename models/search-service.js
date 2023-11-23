@@ -137,9 +137,15 @@ async function getHtml(origin, referer) {
 
 export async function crawling() {
   try {
+    const courtArr = [];
     const $ = await getHtml(COURT_AUCTION, MAIN_INFO);
     // const options = $("#idJiwonNm1").children("option");
-    const options = $("#idJiwonNm1").contents();
+    // const options = $("#idJiwonNm1").contents(); // typeof options: object
+    $('#idJiwonNm1 option').each((i, elem) => {
+      courtArr.push($(elem).attr('value'));
+    })
+    courtArr.pop();
+    console.log("🔥 / file: search-service.js:146 / $ / courtArr:", courtArr)
   } catch (error) {
     logger.error(error);
   }
