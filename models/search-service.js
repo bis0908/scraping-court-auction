@@ -106,7 +106,7 @@ export async function crawling() {
       termEndDt: twoWeeksLater,
     });
 
-    logger.info($(".Ltbl_list").contents());
+    extractDataFromDom($);
   }
 }
 
@@ -116,7 +116,49 @@ export async function crawling() {
  */
 function extractDataFromDom($) {
   const basicObjectInfo = {};
-  $(".Ltbl_list_lvl0, .Ltbl_list_lvl0").each((i, element) => {});
+  // $(".Ltbl_list_lvl0, .Ltbl_list_lvl1").each((i, element) => {
+  // });
+  const firstRow = $(".Ltbl_list_lvl0, .Ltbl_list_lvl1").first();
+  // console.log(
+  //   "🔥 / file: search-service.js:122 / extractDataFromDom / firstRow:",
+  //   firstRow.text().trim()
+  // );
+  // const values = $(element)
+  const values = firstRow
+    .find("td")
+    .map((i, td) => {
+      return $(td).text().trim();
+    })
+    .get();
+  console.log(
+    "🔥 / file: search-service.js:133 / extractDataFromDom / values:",
+    values
+  );
+
+  const caseInfo = values[1].split("\n").map((item) => item.trim());
+  const court = caseInfo[0];
+  const case_number = caseInfo[1]; // Assuming the case number is always in this position
+  const product_no = parseInt(values[2].split("\n")[0], 10);
+  const purpose = values[2].split("\n")[1].trim();
+  // const address = $(element)
+  const address = firstRow
+    .find("td.txtleft div.tbl_btm_noline a")
+    .first()
+    .text()
+    .trim();
+  // console.log("🔥 / file: search-service.js:144 / $ / address:", address);
+  const remark = ""; // Extract based on your requirements
+  const appraisal_amount = parseInt(
+    values[5].split("\n")[0].replace(/[^\d]/g, ""),
+    10
+  );
+  const lowest_sale_price = parseInt(
+    values[5].split("\n")[1].replace(/[^\d]/g, ""),
+    10
+  );
+  const investigator = values[6].split("\n")[0].trim();
+  const sale_date = new Date(values[6].split("\n")[1].trim());
+  const progress = values[6].split("\n")[2].trim();
 }
 
 async function getCourtList() {
