@@ -13,7 +13,10 @@ import path from "path";
 const app = express();
 const __dirname = path.resolve(); // for ES module
 
-const accessLogStream = fs.createWriteStream(join(__dirname, "./logs/access.log"), { flags: "a" });
+const accessLogStream = fs.createWriteStream(
+  join(__dirname, "./logs/access.log"),
+  { flags: "a" }
+);
 
 // view engine setup
 app.set("views", join(__dirname, "views"));
@@ -27,7 +30,7 @@ app.use(express.static(join(__dirname, "public")));
 
 app.use("/", indexRouter);
 
-crawling();
+// crawling();
 
 // catch 404 and forward to error handler
 app.use(function (req, res, next) {

@@ -1,0 +1,87 @@
+{
+  "case_number": "",
+  "court": "",
+  "product_no": 0,
+  "purpose": "",
+  "address": "",
+  "remark": "",
+  "appraisal_amount": 0,
+  "lowest_sale_price": 0,
+  "investigator": 0,
+  "sale_date": "2023-11-24T12:34:52.958Z",
+  "progress": "",
+  "basic_object_info": {
+    "case_number": "",
+    "product_no": "",
+    "product_type": "",
+    "appraisal_amount": 0,
+    "lowest_sale_price": 0,
+    "bidding_method": "",
+    "sale_date": "2023-11-24T12:34:52.958Z",
+    "item_remark": "",
+    "list_location": "",
+    "court_in_charge": "",
+    "case_receipt": "2023-11-24T12:34:52.958Z",
+    "auction_start": "2023-11-24T12:34:52.958Z",
+    "dividend_request_deadline": "2023-11-24T12:34:52.958Z",
+    "claim_amount": 0,
+    "list_history": [
+      {
+        "case_number": "",
+        "list_no": 0,
+        "list_type": "",
+        "detail": ""
+      }
+    ],
+    "auction_history": [
+      {
+        "case_number": "",
+        "auction_date": "",
+        "auction_type": "",
+        "auction_place": "",
+        "min_sale_price": 0,
+        "auction_result": ""
+      }
+    ],
+    "appraisal_requirements": {
+      "case_number": "",
+      "content": ""
+    },
+    "nearby_sales_statistics": [
+      {
+        "duration": 0,
+        "number_of_sales": 0,
+        "average_appraisal_value": 0,
+        "average_sale_price": 0,
+        "sale_ratio": 0,
+        "average_fail_to_sell_count": 0.7,
+        "case_number_origin": ""
+      }
+    ],
+    "item_sale_nearby": [
+      {
+        "case_number_nearby": "",
+        "purpose": "",
+        "location": "",
+        "appraisal_amount": 0,
+        "sale_month": "",
+        "sale_amount": 0,
+        "case_number_origin": ""
+      }
+    ],
+    "nearby_progress_stuff": [
+      {
+        "case_number_nearby": "",
+        "purpose": "",
+        "location": "",
+        "remark": "",
+        "appraisal_sale": 0,
+        "lowest_sale_price": 0,
+        "department": "",
+        "sale_date": "2023-11-24T12:34:52.958Z",
+        "progress": "",
+        "case_number_origin": ""
+      }
+    ]
+  }
+}

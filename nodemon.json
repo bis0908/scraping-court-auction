@@ -1,6 +1,6 @@
 {
   "restartable": "rs",
-  "ignore": [".git", "node_modules/**/node_modules", "views", "logs", "public", "config", ".html"],
+  "ignore": [".git", "node_modules/**/node_modules", "views", "logs", "public", "config", ".html", "common"],
   "verbose": true,
   "execMap": {
     "js": "node --harmony"
