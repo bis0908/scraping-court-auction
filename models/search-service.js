@@ -1,8 +1,9 @@
 import * as cheerio from "cheerio";
 
+import { calcTwoWeeks, convertToKST } from "../common/date-control.js";
+
 import { assert } from "console";
 import axios from "axios";
-import { calcTwoWeeks } from "../common/date-control.js";
 import exportFakeUserAgent from "../common/fake-user-agent.js";
 import fs from "fs";
 import { koreanToURIEncoding } from "../common/string-control.js";
@@ -37,12 +38,12 @@ async function getHtml(origin, referer, ...args) {
 
     const [{ jiwonNm, termStatDt, termEndDt }] = args;
 
-    console.log(
-      "🔥 / file: search-service.js:36 / getHtml / jiwonNm, termStatDt, termEndDt:",
-      jiwonNm,
-      termStatDt,
-      termEndDt
-    );
+    // // console.log(
+    // // "🔥 / file: search-service.js:36 / getHtml / jiwonNm, termStatDt, termEndDt:",
+    // // jiwonNm,
+    // // termStatDt,
+    // // termEndDt
+    // // );
 
     let urlParams;
 
@@ -112,53 +113,44 @@ export async function crawling() {
 
 /**
  *
- * @param {cheerio.CheerioAPI} $
+ * @param { cheerio.CheerioAPI } $
  */
 function extractDataFromDom($) {
   const basicObjectInfo = {};
   // $(".Ltbl_list_lvl0, .Ltbl_list_lvl1").each((i, element) => {
   // });
   const firstRow = $(".Ltbl_list_lvl0, .Ltbl_list_lvl1").first();
-  // console.log(
-  //   "🔥 / file: search-service.js:122 / extractDataFromDom / firstRow:",
-  //   firstRow.text().trim()
-  // );
+
   // const values = $(element)
-  const values = firstRow
+  // const values = firstRow
+  //   .find("td")
+  //   .map((i, td) => $(td).text().trim())
+  //   .get();
+  const result = firstRow
     .find("td")
-    .map((i, td) => {
-      return $(td).text().trim();
+    .text()
+    .split(/\n+/)
+    .map((element, i) => {
+      return element.trim().replace(/\s+/, "");
     })
-    .get();
+    .filter((f) => {
+      return f !== "";
+    });
   console.log(
-    "🔥 / file: search-service.js:133 / extractDataFromDom / values:",
-    values
+    "🔥 / file: search-service.js:141 / extractDataFromDom / result:",
+    result
   );
 
-  const caseInfo = values[1].split("\n").map((item) => item.trim());
-  const court = caseInfo[0];
-  const case_number = caseInfo[1]; // Assuming the case number is always in this position
-  const product_no = parseInt(values[2].split("\n")[0], 10);
-  const purpose = values[2].split("\n")[1].trim();
-  // const address = $(element)
-  const address = firstRow
-    .find("td.txtleft div.tbl_btm_noline a")
-    .first()
-    .text()
-    .trim();
-  // console.log("🔥 / file: search-service.js:144 / $ / address:", address);
-  const remark = ""; // Extract based on your requirements
-  const appraisal_amount = parseInt(
-    values[5].split("\n")[0].replace(/[^\d]/g, ""),
-    10
-  );
-  const lowest_sale_price = parseInt(
-    values[5].split("\n")[1].replace(/[^\d]/g, ""),
-    10
-  );
-  const investigator = values[6].split("\n")[0].trim();
-  const sale_date = new Date(values[6].split("\n")[1].trim());
-  const progress = values[6].split("\n")[2].trim();
+  result.forEach((element) => {
+    try {
+      element = parseInt(element.replace(",", ""));
+    } catch (error) {}
+  });
+
+  const note = firstRow.find(".txtright").prev().text().trim();
+  if (note !== "") {
+    // remark = note;
+  }
 }
 
 async function getCourtList() {
