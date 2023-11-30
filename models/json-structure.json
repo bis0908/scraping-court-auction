@@ -12,7 +12,7 @@
   "progress": "",
   "basic_object_info": {
     "case_number": "",
-    "product_no": "",
+    "product_no": 0,
     "product_type": "",
     "appraisal_amount": 0,
     "lowest_sale_price": 0,
@@ -25,14 +25,6 @@
     "auction_start": "2023-11-24T12:34:52.958Z",
     "dividend_request_deadline": "2023-11-24T12:34:52.958Z",
     "claim_amount": 0,
-    "list_history": [
-      {
-        "case_number": "",
-        "list_no": 0,
-        "list_type": "",
-        "detail": ""
-      }
-    ],
     "auction_history": [
       {
         "case_number": "",
@@ -41,6 +33,14 @@
         "auction_place": "",
         "min_sale_price": 0,
         "auction_result": ""
+      }
+    ],
+    "list_history": [
+      {
+        "case_number": "",
+        "list_no": 0,
+        "list_type": "",
+        "detail": ""
       }
     ],
     "appraisal_requirements": {
