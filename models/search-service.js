@@ -9,6 +9,7 @@ import fs from "fs";
 import { koreanToURIEncoding } from "../common/string-control.js";
 import logger from "../config/logger.js";
 import path from "path";
+import puppeteer from "puppeteer";
 
 const COURT_AUCTION = "https://www.courtauction.go.kr/";
 const MAIN_INFO = "RetrieveMainInfo.laf?";
@@ -16,6 +17,7 @@ const DETAIL_LIST = "RetrieveRealEstMulDetailList.laf?";
 const DETAIL_INFO = "RetrieveRealEstCarHvyMachineMulDetailInfo.laf?";
 const SRN_ID = "PNO102001";
 const AUCTION_LIST = [];
+let rowUrl = "";
 
 async function replaceParams(query, i) {
   // query = query.replace(/start=[0-9]+/, `start=${i}`);
@@ -224,6 +226,18 @@ async function extractDataFromDom($) {
   const thisYear = new Date();
   const [today, twoWeeksLater] = calcTwoWeeks();
 
+  rowUrl =
+    COURT_AUCTION +
+    DETAIL_INFO +
+    auctionDetailParameter(
+      koreanToURIEncoding(court),
+      saNo,
+      maemulSer,
+      thisYear,
+      today,
+      twoWeeksLater
+    );
+
   const realEstateDetailInfo = await getHtml(
     COURT_AUCTION,
     DETAIL_INFO,
@@ -416,6 +430,55 @@ function extractDataFromRealEstateDetail($) {
       nearbySalesStatistics.push(rowObj);
     });
   basicObjectInfo["nearby_sales_statistics"] = nearbySalesStatistics;
+
+  (async () => {
+    const browser = await puppeteer.launch({ headless: true });
+    const page = await browser.newPage();
+
+    await page.goto(rowUrl);
+    await page.click("#nearMaeTongList > div > div > div > a");
+    await page.waitForSelector("#idNearYusaMgakMul table", {
+      timeout: 500,
+    });
+
+    // 인근 매각 물건
+    const itemSaleNearby = await page.evaluate(() => {
+      const headers = Array.from(
+        document.querySelectorAll("#idNearYusaMgakMul table thead th")
+      ).map((th) => th.innerText.trim());
+      const rows = Array.from(
+        document.querySelectorAll("#idNearYusaMgakMul table tbody tr")
+      );
+
+      return rows.map((tr) => {
+        const cells = Array.from(tr.querySelectorAll("td"));
+        const rowObj = {};
+        cells.forEach((cell, index) => {
+          if (index === 3 || index === 5) {
+            rowObj[headers[index]] = parseInt(
+              cell.innerText.trim().replace(/,/g, ""),
+              10
+            );
+          } else {
+            rowObj[headers[index]] = cell.innerText.trim().replace("\n", ",");
+          }
+        });
+        return rowObj;
+      });
+    });
+
+    // 인근 진행 물건
+    await page.click(
+      "div.tab_menu_off_m_mid > a[onclick*=\"changeDisplayTable('jinhang')\"]"
+    );
+
+    await page.waitForSelector("#idNearJinhangMul table", {
+      timeout: 500,
+    });
+
+    await browser.close();
+    return { itemSaleNearby };
+  })();
 
   return basicObjectInfo;
   // logger.info("basicObjectInfo: " + JSON.stringify(basicObjectInfo));
