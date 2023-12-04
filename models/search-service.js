@@ -1,8 +1,8 @@
 import * as cheerio from "cheerio";
 
+import { assert, time } from "console";
 import { calcTwoWeeks, convertToKST } from "../common/date-control.js";
 
-import { assert } from "console";
 import axios from "axios";
 import exportFakeUserAgent from "../common/fake-user-agent.js";
 import fs from "fs";
@@ -145,17 +145,50 @@ export async function crawling() {
   const [today, twoWeeksLater] = calcTwoWeeks();
   const thisYear = new Date();
 
-  const encodedCourt = koreanToURIEncoding(courtList[0]);
-  // 2. 해당 법원명으로 1 페이지부터 검색결과 가져오기
-  const $ = await getHtml(
-    COURT_AUCTION,
-    DETAIL_LIST,
-    auctionListParameter(encodedCourt, thisYear, today, twoWeeksLater, "", "1")
-  );
+  // let pageCount = 1;
 
-  // 3. 가져온 검색결과에서 원하는 값 추출
-  // 4. 검색결과 항목별 물건세부정보 페이지 크롤링 및 추출 함수 필요
-  extractDataFromDom($);
+  const courtPageCounts = {};
+  courtList.forEach((court) => {
+    courtPageCounts[court] = 1;
+  });
+
+  console.time("court loop");
+
+  for await (const court of courtList) {
+    console.log("🔥 / file: search-service.js:152 / forawait / court:", court);
+
+    const encodedCourt = koreanToURIEncoding(court);
+
+    // 2. 해당 법원명으로 1 페이지부터 검색결과 가져오기
+    const $ = await getHtml(
+      COURT_AUCTION,
+      DETAIL_LIST,
+      auctionListParameter(
+        encodedCourt,
+        thisYear,
+        today,
+        twoWeeksLater,
+        "",
+        courtPageCounts[court].toString()
+      )
+    );
+
+    // 3. 가져온 검색결과에서 원하는 값 추출
+    // 4. 검색결과 항목별 물건세부정보 페이지 크롤링 및 추출
+    try {
+      await extractDataFromDom($);
+    } catch (error) {
+      logger.error(error);
+      continue;
+    }
+    courtPageCounts[court] += 40;
+  }
+
+  console.timeEnd("court loop");
+
+  logger.info("AUCTION_LIST: " + JSON.stringify(AUCTION_LIST));
+
+  // TODO DB에 푸시하는 작업
 }
 
 /**
@@ -164,94 +197,109 @@ export async function crawling() {
  */
 async function extractDataFromDom($) {
   const auctionItem = {};
-  // const totalContentsCount = parseInt($(".txtblue").text().match(/\d+/)[0], 10);
 
-  // $(".Ltbl_list_lvl0, .Ltbl_list_lvl1").each((i, element) => {
-  // });
-  const firstRow = $(".Ltbl_list_lvl0, .Ltbl_list_lvl1").first();
-  // logger.info(firstRow);
-  // const values = $(element)
+  const tableRow = $(".Ltbl_list_lvl0, .Ltbl_list_lvl1");
 
-  const [_, saNo, maemulSer] = firstRow
-    .find("input[type=checkbox]")
-    .val()
-    .split(",");
+  console.time("extract dom");
 
-  const courtAndCase = removeTabAndLineBreak($, $(firstRow).find("td").eq(1));
+  for await (const row of tableRow) {
+    const [_, saNo, maemulSer] = $(row)
+      .find("input[type=checkbox]")
+      .val()
+      .split(",");
 
-  const [court, ...case_number] = courtAndCase;
+    const courtAndCase = removeTabAndLineBreak($, $(row).find("td").eq(1));
 
-  // edge case handling
-  if (court === undefined) {
-    console.warn("there is no next data");
-    return;
-  }
-
-  auctionItem["court"] = court;
-  auctionItem["case_number"] = case_number.join();
-
-  const productDetails = removeTabAndLineBreak($, $(firstRow).find("td").eq(2));
-  const [product_no, purpose] = productDetails;
-  auctionItem["product_no"] = product_no;
-  auctionItem["purpose"] = purpose;
-
-  const address = removeTabAndLineBreak(
-    $,
-    $(firstRow).find("td.txtleft").eq(0)
-  ).join();
-  auctionItem["address"] = address;
-
-  const appraisal_and_sale = removeTabAndLineBreak(
-    $,
-    $(firstRow).find("td.txtright div")
-  );
-  const appraisal_amount = parseInt(appraisal_and_sale[0], 10);
-  const lowest_sale_price = parseInt(appraisal_and_sale[1], 10);
-
-  auctionItem["appraisal_amount"] = appraisal_amount;
-  auctionItem["lowest_sale_price"] = lowest_sale_price;
-
-  const investigator_and_date = removeTabAndLineBreak(
-    $,
-    $(firstRow).find("td").last()
-  );
-
-  const investigator = investigator_and_date[0];
-  const sale_date = convertToKST(investigator_and_date[1]);
-  const progress = investigator_and_date[2] + investigator_and_date[3];
-  auctionItem["investigator"] = investigator;
-  auctionItem["sale_date"] = sale_date;
-  auctionItem["progress"] = progress;
-
-  const thisYear = new Date();
-  const [today, twoWeeksLater] = calcTwoWeeks();
-
-  rowUrl =
-    COURT_AUCTION +
-    DETAIL_INFO +
-    auctionDetailParameter(
-      koreanToURIEncoding(court),
-      saNo,
-      maemulSer,
-      thisYear,
-      today,
-      twoWeeksLater
+    const [court, ...case_number] = courtAndCase;
+    console.log(
+      "🔥 / file: search-service.js:196 / $ / case_number:",
+      case_number
     );
 
-  const realEstateDetailInfo = await getHtml(
-    COURT_AUCTION,
-    DETAIL_INFO,
-    auctionDetailParameter(
-      koreanToURIEncoding(court),
-      saNo,
-      maemulSer,
-      thisYear,
-      today,
-      twoWeeksLater
-    )
-  );
-  auctionItem["basic_object_info"] =
-    extractDataFromRealEstateDetail(realEstateDetailInfo);
+    // edge case handling
+    if (court === undefined) {
+      console.warn("there is no next data");
+      logger.warn("there is no next data");
+      return;
+    }
+
+    auctionItem["court"] = court;
+    auctionItem["case_number"] = case_number.join();
+
+    const productDetails = removeTabAndLineBreak($, $(row).find("td").eq(2));
+    const [product_no, purpose] = productDetails;
+    auctionItem["product_no"] = product_no;
+    auctionItem["purpose"] = purpose;
+
+    const address = removeTabAndLineBreak(
+      $,
+      $(row).find("td.txtleft").eq(0)
+    ).join();
+    auctionItem["address"] = address;
+
+    const appraisal_and_sale = removeTabAndLineBreak(
+      $,
+      $(row).find("td.txtright div")
+    );
+    const appraisal_amount = parseInt(appraisal_and_sale[0], 10);
+    const lowest_sale_price = parseInt(appraisal_and_sale[1], 10);
+
+    auctionItem["appraisal_amount"] = appraisal_amount;
+    auctionItem["lowest_sale_price"] = lowest_sale_price;
+
+    const investigator_and_date = removeTabAndLineBreak(
+      $,
+      $(row).find("td").last()
+    );
+
+    const investigator = investigator_and_date[0];
+    const sale_date = convertToKST(investigator_and_date[1]);
+    const progress = investigator_and_date[2] + investigator_and_date[3];
+    auctionItem["investigator"] = investigator;
+    auctionItem["sale_date"] = sale_date;
+    auctionItem["progress"] = progress;
+
+    const thisYear = new Date();
+    const [today, twoWeeksLater] = calcTwoWeeks();
+
+    rowUrl =
+      COURT_AUCTION +
+      DETAIL_INFO +
+      auctionDetailParameter(
+        koreanToURIEncoding(court),
+        saNo,
+        maemulSer,
+        thisYear,
+        today,
+        twoWeeksLater
+      );
+
+    const realEstateDetailInfo = await getHtml(
+      COURT_AUCTION,
+      DETAIL_INFO,
+      auctionDetailParameter(
+        koreanToURIEncoding(court),
+        saNo,
+        maemulSer,
+        thisYear,
+        today,
+        twoWeeksLater
+      )
+    );
+
+    try {
+      auctionItem["basic_object_info"] = await extractDataFromRealEstateDetail(
+        realEstateDetailInfo
+      );
+      AUCTION_LIST.push(auctionItem);
+    } catch (error) {
+      logger.error(error);
+      logger.error("err from court: " + court);
+      logger.error("err from case number: " + case_number);
+      continue;
+    }
+  }
+  console.timeEnd("extract dom");
 
   // logger.info(JSON.stringify(auctionItem));
   // AUCTION_LIST.push(auctionItem);
@@ -285,10 +333,9 @@ function removeTabAndLineBreak($, elem) {
  * @param {cheerio.CheerioAPI} $ cheerio Object
  * @returns Object
  */
-function extractDataFromRealEstateDetail($) {
+async function extractDataFromRealEstateDetail($) {
+  console.time("extract detail");
   const basicObjectInfo = {};
-  // const basicInfo = new Object();
-  // const basicInfo2 = new Object();
   const photoInfo = new Array();
   const auctionHistory = new Array();
   const listHistory = new Array();
@@ -310,16 +357,17 @@ function extractDataFromRealEstateDetail($) {
       }
     });
 
-  const dirPath = path.join(
+  // ? extract image
+  /* const dirPath = path.join(
     __dirname,
     "public",
     "images",
     basicObjectInfo["담당"][0],
     basicObjectInfo["사건번호"][0]
-  );
-
+  ); */
+  // ? extract image
   // 이미지 저장 경로 생성
-  mkdir(dirPath);
+  // mkdir(dirPath);
 
   // 물건 기본 정보 2: obj
   $("table.Ltbl_dt")
@@ -337,8 +385,9 @@ function extractDataFromRealEstateDetail($) {
       }
     });
 
+  // ? extract image
   // 이미지 경로 배열 추출
-  $("table.Ltbl_dt")
+  /* $("table.Ltbl_dt")
     .eq(2)
     .find("img")
     .each((i, img) => {
@@ -346,7 +395,7 @@ function extractDataFromRealEstateDetail($) {
       photoInfo.push(src.replaceAll("T_", ""));
     });
   photoInfo.shift();
-  photoInfo.pop();
+  photoInfo.pop(); */
   // TODO: 사진 추출 함수 호출 필요
 
   // 기일내역 추출: arr of obj
@@ -431,21 +480,22 @@ function extractDataFromRealEstateDetail($) {
     });
   basicObjectInfo["nearby_sales_statistics"] = nearbySalesStatistics;
 
-  (async () => {
+  // puppeteer
+  const nearbyInfo = await (async () => {
     const browser = await puppeteer.launch({ headless: true });
     const page = await browser.newPage();
 
     await page.goto(rowUrl);
     await page.click("#nearMaeTongList > div > div > div > a");
     await page.waitForSelector("#idNearYusaMgakMul table", {
-      timeout: 500,
+      timeout: 60000,
     });
 
     // 인근 매각 물건
     const itemSaleNearby = await page.evaluate(() => {
       const headers = Array.from(
         document.querySelectorAll("#idNearYusaMgakMul table thead th")
-      ).map((th) => th.innerText.trim());
+      ).map((th) => th.innerText.trim().replace(/\n/, "-"));
       const rows = Array.from(
         document.querySelectorAll("#idNearYusaMgakMul table tbody tr")
       );
@@ -469,19 +519,49 @@ function extractDataFromRealEstateDetail($) {
 
     // 인근 진행 물건
     await page.click(
-      "div.tab_menu_off_m_mid > a[onclick*=\"changeDisplayTable('jinhang')\"]"
+      "#nearMaemulList > div > div > div.tab_menu_off_m_mid > a[onclick*=\"changeDisplayTable('jinhang')\"]"
     );
-
     await page.waitForSelector("#idNearJinhangMul table", {
-      timeout: 500,
+      timeout: 60000,
+    });
+
+    const nearbyProgressStuff = await page.evaluate(() => {
+      const headers = Array.from(
+        document.querySelectorAll("#idNearJinhangMul table thead th")
+      ).map((th) => th.innerText.trim().replace(/\n/, "-"));
+      const rows = Array.from(
+        document.querySelectorAll("#idNearJinhangMul table tbody tr")
+      );
+
+      return rows.map((tr) => {
+        const cells = Array.from(tr.querySelectorAll("td"));
+        const rowObj = {};
+        cells.forEach((cell, index) => {
+          if (index === 4) {
+            rowObj[headers[index]] = cell.innerText
+              .trim()
+              .split(/\n/)
+              .map((elem) => {
+                return parseInt(elem.replace(/,/g, ""), 10);
+              });
+          } else {
+            rowObj[headers[index]] = cell.innerText.trim().replace("\n", ",");
+          }
+        });
+        return rowObj;
+      });
     });
 
     await browser.close();
-    return { itemSaleNearby };
+
+    return { itemSaleNearby, nearbyProgressStuff };
   })();
 
+  const { itemSaleNearby, nearbyProgressStuff } = nearbyInfo;
+  basicObjectInfo.item_sale_nearby = itemSaleNearby;
+  basicObjectInfo.nearby_progress_stuff = nearbyProgressStuff;
+  console.timeEnd("extract detail");
   return basicObjectInfo;
-  // logger.info("basicObjectInfo: " + JSON.stringify(basicObjectInfo));
 }
 
 /**
