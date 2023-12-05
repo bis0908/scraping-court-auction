@@ -179,16 +179,16 @@ export async function crawling() {
       await extractDataFromDom($);
     } catch (error) {
       logger.error(error);
-      continue;
+      // continue;
     }
     courtPageCounts[court] += 40;
   }
 
   console.timeEnd("court loop");
 
-  logger.info("AUCTION_LIST: " + JSON.stringify(AUCTION_LIST));
+  // logger.info("AUCTION_LIST: " + JSON.stringify(AUCTION_LIST));
 
-  // TODO DB에 푸시하는 작업
+  // TODO: DB에 푸시하는 작업
 }
 
 /**
@@ -357,17 +357,18 @@ async function extractDataFromRealEstateDetail($) {
       }
     });
 
-  // ? extract image
-  /* const dirPath = path.join(
+  // * extract image
+  const dirPath = path.join(
     __dirname,
     "public",
     "images",
-    basicObjectInfo["담당"][0],
-    basicObjectInfo["사건번호"][0]
-  ); */
-  // ? extract image
+    basicObjectInfo["담당"].split(",")[0],
+    basicObjectInfo["사건번호"]
+  );
+  // * extract image
   // 이미지 저장 경로 생성
-  // mkdir(dirPath);
+  logger.info("dirPath: " + dirPath);
+  mkdir(dirPath);
 
   // 물건 기본 정보 2: obj
   $("table.Ltbl_dt")
@@ -385,18 +386,28 @@ async function extractDataFromRealEstateDetail($) {
       }
     });
 
-  // ? extract image
+  // * extract image
   // 이미지 경로 배열 추출
-  /* $("table.Ltbl_dt")
+  $("table.Ltbl_dt")
     .eq(2)
     .find("img")
     .each((i, img) => {
       const src = $(img).attr("src");
-      photoInfo.push(src.replaceAll("T_", ""));
+
+      if (src !== undefined) {
+        photoInfo.push(src.replaceAll("T_", ""));
+      }
     });
-  photoInfo.shift();
-  photoInfo.pop(); */
-  // TODO: 사진 추출 함수 호출 필요
+
+  logger.info("photoInfo.length: " + photoInfo.length);
+
+  if (photoInfo.length > 0) {
+    photoInfo.shift();
+    photoInfo.pop();
+
+    // * 사진 추출 함수 호출
+    await saveImages(photoInfo, basicObjectInfo);
+  }
 
   // 기일내역 추출: arr of obj
   $("table.Ltbl_list")
@@ -571,21 +582,23 @@ async function extractDataFromRealEstateDetail($) {
  */
 async function saveImages(imgSrcArr, basicInfo) {
   const fetchPromises = imgSrcArr.map((src, i) => {
-    fetch(COURT_AUCTION + src)
-      .then((res) => res.arrayBuffer())
-      .then((data) => {
-        const buffer = Buffer.from(data);
-        fs.createWriteStream(
-          path.join(
-            __dirname,
-            "public",
-            "images",
-            basicInfo["담당"][0],
-            basicInfo["사건번호"][0],
-            basicInfo["사건번호"][0] + `_${i}.jpg`
-          )
-        ).write(buffer);
-      });
+    const imagePath = path.join(
+      __dirname,
+      "public",
+      "images",
+      basicInfo["담당"].split(",")[0],
+      basicInfo["사건번호"],
+      basicInfo["사건번호"] + `_${i}.jpg`
+    );
+
+    if (!fs.existsSync(imagePath)) {
+      return fetch(COURT_AUCTION + src)
+        .then((res) => res.arrayBuffer())
+        .then((data) => {
+          const buffer = Buffer.from(data);
+          fs.createWriteStream(imagePath).write(buffer);
+        });
+    }
   });
 
   await Promise.all(fetchPromises);
